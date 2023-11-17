@@ -1,4 +1,5 @@
 #include "TinyRF_RX.h"
+
 //Entre WeMos
 //  Vin  --100uF-- GND
 
@@ -8,32 +9,22 @@
 //  D2        ---------------     data
 //  G         ---------------     GND
 
+
 uint8_t rxPin = D2;
 
 void setup(){
   Serial.begin(115200);
+  //make sure you call this in your setup
   setupReceiver(rxPin);
 }
 
 void loop(){
 
-  const uint8_t bufSize = 30;
+  const uint8_t bufSize = 7;
   byte buf[bufSize];
-  uint8_t numLostMsgs = 0;
   uint8_t numRcvdBytes = 0;
 
-  // number of received bytes will be put in numRcvdBytes
-  // if sequence numbering is enabled the number of lost messages will be put in numLostMsgs
-  // if you have disabled sequence numbering or don't need number of lost messages you can omit this argument
-  uint8_t err = getReceivedData(buf, bufSize, numRcvdBytes, numLostMsgs);
-
-  // the receiver has a circular FIFO buffer
-  // if getReceivedData() isn't called frequently enough then older messages will get overwritten
-  // so make sure the frequency at which you send messages in your tx code is slower than the frequency
-  // at which you call getReceivedData() in your rx code to prevent that
-  // specially when you are using sendMulti()
-  // duplicate messages that are sent using sendMulti() will stay in the buffer until you read the first one
-  // you can change the buffer size in settings.h
+  uint8_t err = getReceivedData(buf, bufSize, numRcvdBytes);
 
   if(err == TRF_ERR_NO_DATA){
     return;
@@ -49,23 +40,34 @@ void loop(){
     return;
   }
 
-  // if sequence numbering is enabled and you use the sendMulti() function for sending a message
-  // multiple times then getReceivedData() will return TRF_ERR_SUCCESS only once
-  // all the duplicate messages will be automatically ignored
-  // this means all you need to do is check if the return code is TRF_ERR_SUCCESS
-  // these are non-repeated, crc-valid messages
   if(err == TRF_ERR_SUCCESS){
-    Serial.print("Received: ");
-    for(int i=0; i<numRcvdBytes; i++){
-      Serial.print((char)buf[i]);
-      }
-    }
-    Serial.println("");
 
-    if(numLostMsgs>0){
-      Serial.print(numLostMsgs);
-      Serial.println(" messages were lost before this message.");
-    }
+    byte byteNum;
+    int intNum;
+    long longNum;
+
+    byteNum = buf[0];
+
+    //now we do the opposite of what we did in the transmitter sketch
+    //pay attention to the '|=' operator
+    //only the first byte assignment uses the '=' operator
+    intNum = (int) buf[1];
+    intNum |= (int) buf[2] << 8;
+
+    longNum = (long) buf[3];
+    longNum |= (long) buf[4] << 8;
+    longNum |= (long) buf[5] << 16;
+    longNum |= (long) buf[6] << 24;
+
+    Serial.print("byte number received: ");
+    Serial.println(byteNum);
+
+    Serial.print("int number received: ");
+    Serial.println(intNum);
+
+    Serial.print("long number received: ");
+    Serial.println(longNum);
+
   }
   
 }
